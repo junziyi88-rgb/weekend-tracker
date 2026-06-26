@@ -37,15 +37,15 @@ type CalendarDay = {
 };
 
 const CATEGORY_COLORS: Record<Category, string> = {
-  休息: "#3b82f6",
-  社交: "#f97316",
-  运动: "#16a34a",
-  学习: "#8b5cf6",
-  娱乐: "#ec4899",
-  家务: "#14b8a6",
-  出行: "#eab308",
-  工作: "#64748b",
-  陪伴家人: "#ef4444",
+  休息: "#6aa9ff",
+  社交: "#ff9f7a",
+  运动: "#64d68a",
+  学习: "#9b7cff",
+  娱乐: "#ff7eb6",
+  家务: "#58d1d4",
+  出行: "#ffc857",
+  工作: "#8fa3c8",
+  陪伴家人: "#ff6b6b",
 };
 
 const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
@@ -357,8 +357,8 @@ function App() {
       <section className="workspace">
         <header className="page-header">
           <div>
-            <p className="eyebrow">Weekend Tracker</p>
-            <h1>周末时间回顾</h1>
+            <p className="eyebrow">Weekend Sticker Book</p>
+            <h1>周末小小回顾本</h1>
           </div>
           <p className="record-count">{records.length} 条记录</p>
         </header>
@@ -526,7 +526,7 @@ function App() {
             <div className="selected-records">
               <h3>当天记录</h3>
               {selectedDateRecords.length === 0 ? (
-                <p>这个周末日期还没有记录。</p>
+                <p>这一天还空着，等一张新贴纸。</p>
               ) : (
                 <ul>
                   {selectedDateRecords.map((record) => (
@@ -638,8 +638,8 @@ function App() {
 
               {records.length === 0 ? (
                 <div className="empty-state">
-                  <h3>还没有周末记录</h3>
-                  <p>添加第一条记录后，它会显示在这里。</p>
+                  <h3>贴纸簿还空着</h3>
+                  <p>添加第一条周末记录后，它会显示在这里。</p>
                 </div>
               ) : (
                 <ul className="record-list">
