@@ -63,6 +63,12 @@ const toLocalDateString = (date: Date) => {
 const addDays = (date: Date, days: number) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 
+const getCurrentWeekendEnd = (date: Date) => {
+  const day = date.getDay();
+  const daysUntilSunday = day === 0 ? 0 : 7 - day;
+  return addDays(date, daysUntilSunday);
+};
+
 const addMonths = (date: Date, monthOffset: number) => {
   const targetMonth = new Date(
     date.getFullYear(),
@@ -119,11 +125,11 @@ const isInRange = (record: WeekendRecord, range: StatsRange, now: Date) => {
   }
 
   const rangeStart = getRangeStartDate(range, now);
-  const today = toLocalDateString(now);
+  const rangeEnd = toLocalDateString(getCurrentWeekendEnd(now));
   return Boolean(
     rangeStart &&
       record.record_date >= rangeStart &&
-      record.record_date <= today,
+      record.record_date <= rangeEnd,
   );
 };
 
@@ -254,13 +260,14 @@ export const calculateTrendSummary = (
   now = new Date(),
 ): TrendSummary => {
   const rangeConfig = getTrendRangeConfig(range);
-  const currentEndExclusive = addDays(now, 1);
+  const currentEnd = getCurrentWeekendEnd(now);
+  const currentEndExclusive = addDays(currentEnd, 1);
   const currentStart = addMonths(currentEndExclusive, -rangeConfig.months);
   const previousStart = addMonths(currentStart, -rangeConfig.months);
 
   const currentStartDate = toLocalDateString(currentStart);
   const currentEndExclusiveDate = toLocalDateString(currentEndExclusive);
-  const currentEndDate = toLocalDateString(now);
+  const currentEndDate = toLocalDateString(currentEnd);
   const previousStartDate = toLocalDateString(previousStart);
   const previousEndDate = toLocalDateString(addDays(currentStart, -1));
 
