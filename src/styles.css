@@ -97,8 +97,13 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
   gap: 20px;
-  align-items: stretch;
+  align-items: start;
   margin-bottom: 20px;
+}
+
+.insight-main {
+  display: grid;
+  gap: 20px;
 }
 
 .form-panel,
@@ -646,7 +651,6 @@ select[aria-invalid="true"] {
 }
 
 .list-panel {
-  margin-bottom: 20px;
   overflow: hidden;
 }
 

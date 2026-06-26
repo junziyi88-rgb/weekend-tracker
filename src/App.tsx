@@ -561,119 +561,121 @@ function App() {
           </section>
         </div>
 
-        <section className="list-panel" aria-labelledby="record-list-title">
-          <div className="section-heading">
-            <h2 id="record-list-title">记录列表</h2>
-            <span>按日期和时间块倒序</span>
-          </div>
+        <div className="insight-grid">
+          <div className="insight-main">
+            <section className="profile-panel" aria-labelledby="profile-title">
+              <div className="panel-header">
+                <div>
+                  <h2 id="profile-title">周末时间画像</h2>
+                  <p>
+                    {profileStats.totalRecords} 条记录 ·{" "}
+                    {formatWeight(profileStats.totalTimeBlockWeight)} 个时间块权重
+                  </p>
+                </div>
+                <div className="range-tabs" aria-label="统计范围">
+                  {STATS_RANGES.map((range) => (
+                    <button
+                      key={range.value}
+                      type="button"
+                      className={range.value === statsRange ? "active" : ""}
+                      onClick={() => setStatsRange(range.value)}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {records.length === 0 ? (
-            <div className="empty-state">
-              <h3>还没有周末记录</h3>
-              <p>添加第一条记录后，它会显示在这里。</p>
-            </div>
-          ) : (
-            <ul className="record-list">
-              {records.map((record) => (
-                <li key={record.id} className="record-item">
-                  <div className="record-main">
-                    <h3>{record.title}</h3>
-                    <p>
-                      {record.record_date} · {record.weekend_slot}
-                    </p>
-                  </div>
-                  <div className="record-meta">
-                    <span>{record.category}</span>
-                    <div className="record-actions">
-                      <button
-                        type="button"
-                        className="text-button"
-                        onClick={() => handleEdit(record)}
-                      >
-                        编辑
-                      </button>
-                      <button
-                        type="button"
-                        className="text-button danger"
-                        onClick={() => handleDelete(record.id)}
-                      >
-                        删除
-                      </button>
+              {profileStats.categoryStats.length === 0 ? (
+                <div className="profile-empty">
+                  <h3>当前范围还没有数据</h3>
+                  <p>新增记录或切换统计范围后，这里会展示分类占比。</p>
+                </div>
+              ) : (
+                <div className="profile-content">
+                  <div
+                    className="pie-chart"
+                    role="img"
+                    aria-label="分类时间块占比饼状图"
+                    style={{ "--pie-gradient": pieGradient } as CSSProperties}
+                  >
+                    <div className="pie-chart-center">
+                      <strong>
+                        {formatWeight(profileStats.totalTimeBlockWeight)}
+                      </strong>
+                      <span>时间块</span>
                     </div>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
 
-        <div className="insight-grid">
-          <section className="profile-panel" aria-labelledby="profile-title">
-            <div className="panel-header">
-              <div>
-                <h2 id="profile-title">周末时间画像</h2>
-                <p>
-                  {profileStats.totalRecords} 条记录 ·{" "}
-                  {formatWeight(profileStats.totalTimeBlockWeight)} 个时间块权重
-                </p>
-              </div>
-              <div className="range-tabs" aria-label="统计范围">
-                {STATS_RANGES.map((range) => (
-                  <button
-                    key={range.value}
-                    type="button"
-                    className={range.value === statsRange ? "active" : ""}
-                    onClick={() => setStatsRange(range.value)}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {profileStats.categoryStats.length === 0 ? (
-              <div className="profile-empty">
-                <h3>当前范围还没有数据</h3>
-                <p>新增记录或切换统计范围后，这里会展示分类占比。</p>
-              </div>
-            ) : (
-              <div className="profile-content">
-                <div
-                  className="pie-chart"
-                  role="img"
-                  aria-label="分类时间块占比饼状图"
-                  style={{ "--pie-gradient": pieGradient } as CSSProperties}
-                >
-                  <div className="pie-chart-center">
-                    <strong>
-                      {formatWeight(profileStats.totalTimeBlockWeight)}
-                    </strong>
-                    <span>时间块</span>
-                  </div>
+                  <ul className="profile-legend" aria-label="分类占比明细">
+                    {profileStats.categoryStats.map((stat) => (
+                      <li key={stat.category}>
+                        <span
+                          className="legend-swatch"
+                          style={{
+                            backgroundColor: CATEGORY_COLORS[stat.category],
+                          }}
+                        />
+                        <span className="legend-name">{stat.category}</span>
+                        <span className="legend-percent">
+                          {formatPercentage(stat.percentage)}
+                        </span>
+                        <span className="legend-weight">
+                          {formatWeight(stat.weight)} 块
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
+              )}
+            </section>
 
-                <ul className="profile-legend" aria-label="分类占比明细">
-                  {profileStats.categoryStats.map((stat) => (
-                    <li key={stat.category}>
-                      <span
-                        className="legend-swatch"
-                        style={{
-                          backgroundColor: CATEGORY_COLORS[stat.category],
-                        }}
-                      />
-                      <span className="legend-name">{stat.category}</span>
-                      <span className="legend-percent">
-                        {formatPercentage(stat.percentage)}
-                      </span>
-                      <span className="legend-weight">
-                        {formatWeight(stat.weight)} 块
-                      </span>
+            <section className="list-panel" aria-labelledby="record-list-title">
+              <div className="section-heading">
+                <h2 id="record-list-title">记录列表</h2>
+                <span>按日期和时间块倒序</span>
+              </div>
+
+              {records.length === 0 ? (
+                <div className="empty-state">
+                  <h3>还没有周末记录</h3>
+                  <p>添加第一条记录后，它会显示在这里。</p>
+                </div>
+              ) : (
+                <ul className="record-list">
+                  {records.map((record) => (
+                    <li key={record.id} className="record-item">
+                      <div className="record-main">
+                        <h3>{record.title}</h3>
+                        <p>
+                          {record.record_date} · {record.weekend_slot}
+                        </p>
+                      </div>
+                      <div className="record-meta">
+                        <span>{record.category}</span>
+                        <div className="record-actions">
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => handleEdit(record)}
+                          >
+                            编辑
+                          </button>
+                          <button
+                            type="button"
+                            className="text-button danger"
+                            onClick={() => handleDelete(record.id)}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      </div>
                     </li>
                   ))}
                 </ul>
-              </div>
-            )}
-          </section>
+              )}
+            </section>
+          </div>
 
           <section className="trend-panel" aria-labelledby="trend-title">
             <div className="panel-header stacked">
