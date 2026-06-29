@@ -86,6 +86,15 @@ const getDefaultSelectedDate = () => {
   return toLocalDateString(addDays(today, 6 - day));
 };
 
+const getInitialSelectedDate = (records: WeekendRecord[]) => {
+  const latestRecord = records.find(
+    (record) =>
+      datePattern.test(record.record_date) && isWeekendDate(record.record_date),
+  );
+
+  return latestRecord?.record_date ?? getDefaultSelectedDate();
+};
+
 const isWeekendDate = (dateString: string) => {
   if (!datePattern.test(dateString)) {
     return false;
@@ -162,19 +171,74 @@ const formatMonthTitle = (date: Date) =>
 const getShortSlotLabel = (slot: WeekendSlot) =>
   slot.replace("周六", "").replace("周日", "");
 
-const getPieGradient = (
+type PieSlice = {
+  category: Category;
+  color: string;
+  percentage: number;
+  path: string;
+  labelX: number;
+  labelY: number;
+  isTiny: boolean;
+};
+
+const PIE_CENTER = 50;
+const PIE_RADIUS = 46;
+
+const getPiePoint = (angle: number, radius: number) => {
+  const radians = ((angle - 90) * Math.PI) / 180;
+  return {
+    x: PIE_CENTER + radius * Math.cos(radians),
+    y: PIE_CENTER + radius * Math.sin(radians),
+  };
+};
+
+const describePieSlice = (startAngle: number, endAngle: number) => {
+  if (endAngle - startAngle >= 359.99) {
+    return [
+      `M ${PIE_CENTER} ${PIE_CENTER}`,
+      `L ${PIE_CENTER} ${PIE_CENTER - PIE_RADIUS}`,
+      `A ${PIE_RADIUS} ${PIE_RADIUS} 0 1 1 ${PIE_CENTER} ${PIE_CENTER + PIE_RADIUS}`,
+      `A ${PIE_RADIUS} ${PIE_RADIUS} 0 1 1 ${PIE_CENTER} ${PIE_CENTER - PIE_RADIUS}`,
+      "Z",
+    ].join(" ");
+  }
+
+  const start = getPiePoint(startAngle, PIE_RADIUS);
+  const end = getPiePoint(endAngle, PIE_RADIUS);
+  const largeArcFlag = endAngle - startAngle > 180 ? 1 : 0;
+
+  return [
+    `M ${PIE_CENTER} ${PIE_CENTER}`,
+    `L ${start.x.toFixed(3)} ${start.y.toFixed(3)}`,
+    `A ${PIE_RADIUS} ${PIE_RADIUS} 0 ${largeArcFlag} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)}`,
+    "Z",
+  ].join(" ");
+};
+
+const getPieSlices = (
   categoryStats: ReturnType<typeof calculateCategoryStats>["categoryStats"],
-) => {
-  let cursor = 0;
+): PieSlice[] => {
+  let cursorAngle = 0;
 
   return categoryStats
     .map((stat) => {
-      const start = cursor;
-      const end = cursor + stat.percentage;
-      cursor = end;
-      return `${CATEGORY_COLORS[stat.category]} ${start}% ${end}%`;
-    })
-    .join(", ");
+      const startAngle = cursorAngle;
+      const endAngle = cursorAngle + stat.percentage * 3.6;
+      const midAngle = startAngle + (endAngle - startAngle) / 2;
+      const isTiny = stat.percentage < 8;
+      const labelPoint = getPiePoint(midAngle, isTiny ? 36 : 28);
+      cursorAngle = endAngle;
+
+      return {
+        category: stat.category,
+        color: CATEGORY_COLORS[stat.category],
+        percentage: stat.percentage,
+        path: describePieSlice(startAngle, endAngle),
+        labelX: labelPoint.x,
+        labelY: labelPoint.y,
+        isTiny,
+      };
+    });
 };
 
 const buildCalendarDays = (
@@ -187,27 +251,45 @@ const buildCalendarDays = (
     1,
   );
   const mondayOffset = (monthStart.getDay() + 6) % 7;
+  const monthEnd = new Date(
+    calendarMonth.getFullYear(),
+    calendarMonth.getMonth() + 1,
+    0,
+  );
+  const trailingOffset = (7 - ((monthEnd.getDay() + 6) % 7) - 1) % 7;
   const gridStart = addDays(monthStart, -mondayOffset);
+  const gridDays = mondayOffset + monthEnd.getDate() + trailingOffset;
   const todayString = toLocalDateString(new Date());
   const recordableEnd = toLocalDateString(getCurrentWeekendEnd());
 
-  return Array.from({ length: 42 }, (_, index) => {
+  return Array.from({ length: gridDays }, (_, index) => {
     const date = addDays(gridStart, index);
     const dateString = toLocalDateString(date);
     const day = date.getDay();
-    const dateRecords = records.filter(
-      (record) => record.record_date === dateString,
-    );
+    const isCurrentMonth = date.getMonth() === calendarMonth.getMonth();
+    const dateRecords = records
+      .filter((record) => isCurrentMonth && record.record_date === dateString)
+      .sort((a, b) => {
+        const slotCompare =
+          WEEKEND_SLOT_ORDER[a.weekend_slot] -
+          WEEKEND_SLOT_ORDER[b.weekend_slot];
+        if (slotCompare !== 0) {
+          return slotCompare;
+        }
+
+        return a.created_at.localeCompare(b.created_at);
+      });
 
     return {
       key: dateString,
       date,
       dateString,
       dayNumber: date.getDate(),
-      isCurrentMonth: date.getMonth() === calendarMonth.getMonth(),
+      isCurrentMonth,
       isToday: dateString === todayString,
       isWeekend: day === 0 || day === 6,
-      isRecordableWeekend: (day === 0 || day === 6) && dateString <= recordableEnd,
+      isRecordableWeekend:
+        isCurrentMonth && (day === 0 || day === 6) && dateString <= recordableEnd,
       records: dateRecords,
     };
   });
@@ -225,8 +307,12 @@ const sortSelectedDateRecords = (records: WeekendRecord[]) =>
   });
 
 function App() {
-  const initialSelectedDate = useMemo(() => getDefaultSelectedDate(), []);
-  const [records, setRecords] = useState<WeekendRecord[]>(() => getRecords());
+  const initialRecords = useMemo(() => getRecords(), []);
+  const initialSelectedDate = useMemo(
+    () => getInitialSelectedDate(initialRecords),
+    [initialRecords],
+  );
+  const [records, setRecords] = useState<WeekendRecord[]>(initialRecords);
   const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
   const [calendarMonth, setCalendarMonth] = useState(() =>
     parseDateString(initialSelectedDate),
@@ -274,8 +360,8 @@ function App() {
     [records, trendRange],
   );
 
-  const pieGradient = useMemo(
-    () => getPieGradient(profileStats.categoryStats),
+  const pieSlices = useMemo(
+    () => getPieSlices(profileStats.categoryStats),
     [profileStats.categoryStats],
   );
 
@@ -351,95 +437,236 @@ function App() {
 
   const titleLabel = editingRecord ? "编辑记录" : "新增记录";
   const submitLabel = editingRecord ? "保存修改" : "新增记录";
+  const profilePanel = (
+    <section className="profile-panel" aria-labelledby="profile-title">
+      <div className="panel-header">
+        <div>
+          <h2 id="profile-title">周末时间画像</h2>
+          <p>
+            {profileStats.totalRecords} 条记录 ·{" "}
+            {formatWeight(profileStats.totalTimeBlockWeight)} 个时间块权重
+          </p>
+        </div>
+        <div className="range-tabs" aria-label="统计范围">
+          {STATS_RANGES.map((range) => (
+            <button
+              key={range.value}
+              type="button"
+              className={range.value === statsRange ? "active" : ""}
+              onClick={() => setStatsRange(range.value)}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {profileStats.categoryStats.length === 0 ? (
+        <div className="profile-empty">
+          <h3>当前范围还没有数据</h3>
+          <p>新增记录或切换统计范围后，这里会展示分类占比。</p>
+        </div>
+      ) : (
+        <div className="profile-content">
+          <div
+            className="pie-chart-wrap"
+            role="img"
+            aria-label="分类时间块占比饼状图"
+          >
+            <svg className="pie-chart" viewBox="0 0 100 100" aria-hidden="true">
+              {pieSlices.map((slice) => (
+                <path
+                  key={slice.category}
+                  className="pie-slice"
+                  d={slice.path}
+                  fill={slice.color}
+                />
+              ))}
+              {pieSlices.map((slice) => (
+                <text
+                  key={`${slice.category}-label`}
+                  className={slice.isTiny ? "pie-label tiny" : "pie-label"}
+                  x={slice.labelX}
+                  y={slice.labelY}
+                  textAnchor="middle"
+                >
+                  <tspan x={slice.labelX} dy="-0.15em">
+                    {slice.category}
+                  </tspan>
+                  <tspan x={slice.labelX} dy="1.15em">
+                    {formatPercentage(slice.percentage)}
+                  </tspan>
+                </text>
+              ))}
+            </svg>
+          </div>
+          <div className="pie-caption">
+            <strong>{formatWeight(profileStats.totalTimeBlockWeight)}</strong>
+            <span>时间块</span>
+          </div>
+
+          <ul className="profile-legend" aria-label="分类占比明细">
+            {profileStats.categoryStats.map((stat) => (
+              <li key={stat.category}>
+                <span
+                  className="legend-swatch"
+                  style={{
+                    backgroundColor: CATEGORY_COLORS[stat.category],
+                  }}
+                />
+                <span className="legend-name">{stat.category}</span>
+                <span className="legend-percent">
+                  {formatPercentage(stat.percentage)}
+                </span>
+                <span className="legend-weight">
+                  {formatWeight(stat.weight)} 块
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+  const trendPanel = (
+    <section className="trend-panel" aria-labelledby="trend-title">
+      <div className="panel-header stacked">
+        <div>
+          <h2 id="trend-title">趋势总结</h2>
+          <p>
+            {trendSummary.currentStartDate} 至 {trendSummary.currentEndDate}
+          </p>
+        </div>
+        <div className="range-tabs compact" aria-label="趋势范围">
+          {TREND_RANGES.map((range) => (
+            <button
+              key={range.value}
+              type="button"
+              className={range.value === trendRange ? "active" : ""}
+              onClick={() => setTrendRange(range.value)}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div
+        className={
+          trendSummary.hasEnoughRecords ? "trend-summary" : "trend-summary muted"
+        }
+      >
+        {trendSummary.sentences.map((sentence) => (
+          <p key={sentence}>{sentence}</p>
+        ))}
+      </div>
+
+      <div className="trend-footnote">
+        <span>
+          当前 {formatWeight(trendSummary.currentStats.totalTimeBlockWeight)} 块
+        </span>
+        <span>
+          上一周期 {formatWeight(trendSummary.previousStats.totalTimeBlockWeight)}{" "}
+          块
+        </span>
+      </div>
+    </section>
+  );
 
   return (
     <main className="app-shell">
       <section className="workspace">
-        <header className="page-header">
-          <div>
-            <p className="eyebrow">Weekend Sticker Book</p>
-            <h1>周末小小回顾本</h1>
-          </div>
-          <p className="record-count">{records.length} 条记录</p>
-        </header>
-
         <div className="planning-grid">
-          <section className="calendar-panel" aria-labelledby="calendar-title">
-            <div className="calendar-heading">
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="上个月"
-                onClick={() =>
-                  setCalendarMonth((current) => addMonths(current, -1))
-                }
-              >
-                ‹
-              </button>
-              <h2 id="calendar-title">{formatMonthTitle(calendarMonth)}</h2>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="下个月"
-                onClick={() =>
-                  setCalendarMonth((current) => addMonths(current, 1))
-                }
-              >
-                ›
-              </button>
-            </div>
-
-            <div className="calendar-grid" aria-label="周末日历">
-              {WEEKDAY_LABELS.map((label) => (
-                <div key={label} className="weekday-label">
-                  {label}
-                </div>
-              ))}
-              {calendarDays.map((day) => (
+          <div className="calendar-stack">
+            <section className="calendar-panel" aria-labelledby="calendar-title">
+              <div className="calendar-heading">
                 <button
-                  key={day.key}
                   type="button"
-                  className={[
-                    "calendar-day",
-                    day.isCurrentMonth ? "" : "outside-month",
-                    day.isWeekend ? "weekend" : "",
-                    day.isRecordableWeekend ? "recordable" : "",
-                    day.isToday ? "today" : "",
-                    day.dateString === selectedDate ? "selected" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => {
-                    if (day.isRecordableWeekend) {
-                      selectCalendarDate(day.dateString);
-                    }
-                  }}
-                  disabled={!day.isRecordableWeekend}
-                  aria-pressed={day.dateString === selectedDate}
+                  className="icon-button"
+                  aria-label="上个月"
+                  onClick={() =>
+                    setCalendarMonth((current) => addMonths(current, -1))
+                  }
                 >
-                  <span className="day-number">{day.dayNumber}</span>
-                  <span className="calendar-records">
-                    {day.records.slice(0, 3).map((record) => (
-                      <span
-                        key={record.id}
-                        className="calendar-record-pill"
-                        style={{
-                          borderColor: CATEGORY_COLORS[record.category],
-                        }}
-                      >
-                        {getShortSlotLabel(record.weekend_slot)} · {record.title}
-                      </span>
-                    ))}
-                    {day.records.length > 3 ? (
-                      <span className="calendar-more">
-                        +{day.records.length - 3}
-                      </span>
-                    ) : null}
-                  </span>
+                  ‹
                 </button>
-              ))}
-            </div>
-          </section>
+                <h2 id="calendar-title">{formatMonthTitle(calendarMonth)}</h2>
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="下个月"
+                  onClick={() =>
+                    setCalendarMonth((current) => addMonths(current, 1))
+                  }
+                >
+                  ›
+                </button>
+              </div>
+
+              <div className="calendar-grid" aria-label="周末日历">
+                {WEEKDAY_LABELS.map((label) => (
+                  <div key={label} className="weekday-label">
+                    {label}
+                  </div>
+                ))}
+                {calendarDays.map((day) => (
+                  <button
+                    key={day.key}
+                    type="button"
+                    className={[
+                      "calendar-day",
+                      day.isCurrentMonth ? "" : "outside-month",
+                      day.isWeekend ? "weekend" : "",
+                      day.isRecordableWeekend ? "recordable" : "",
+                      day.records.length > 0 ? "has-records" : "",
+                      day.isToday ? "today" : "",
+                      day.dateString === selectedDate ? "selected" : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                    onClick={() => {
+                      if (day.isRecordableWeekend) {
+                        selectCalendarDate(day.dateString);
+                      }
+                    }}
+                    disabled={!day.isRecordableWeekend}
+                    aria-pressed={day.dateString === selectedDate}
+                  >
+                    {day.isCurrentMonth ? (
+                      <>
+                        <span className="day-number">{day.dayNumber}</span>
+                        <span className="calendar-records">
+                          {day.records.slice(0, 3).map((record) => (
+                            <span
+                              key={record.id}
+                              className="calendar-record-pill"
+                              style={{
+                                "--record-color": CATEGORY_COLORS[record.category],
+                                borderColor: CATEGORY_COLORS[record.category],
+                                backgroundColor: `${CATEGORY_COLORS[record.category]}26`,
+                              } as CSSProperties}
+                              title={`${record.weekend_slot} · ${record.category} · ${record.title}`}
+                            >
+                              <span className="calendar-record-dot" />
+                              <span className="calendar-record-text">
+                                {getShortSlotLabel(record.weekend_slot)} · {record.title}
+                              </span>
+                            </span>
+                          ))}
+                          {day.records.length > 3 ? (
+                            <span className="calendar-more">
+                              +{day.records.length - 3}
+                            </span>
+                          ) : null}
+                        </span>
+                      </>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+          </div>
 
           <section className="form-panel" aria-labelledby="record-form-title">
             <div className="form-title-row">
@@ -561,75 +788,13 @@ function App() {
           </section>
         </div>
 
+        <div className="summary-grid">
+          {profilePanel}
+          {trendPanel}
+        </div>
+
         <div className="insight-grid">
           <div className="insight-main">
-            <section className="profile-panel" aria-labelledby="profile-title">
-              <div className="panel-header">
-                <div>
-                  <h2 id="profile-title">周末时间画像</h2>
-                  <p>
-                    {profileStats.totalRecords} 条记录 ·{" "}
-                    {formatWeight(profileStats.totalTimeBlockWeight)} 个时间块权重
-                  </p>
-                </div>
-                <div className="range-tabs" aria-label="统计范围">
-                  {STATS_RANGES.map((range) => (
-                    <button
-                      key={range.value}
-                      type="button"
-                      className={range.value === statsRange ? "active" : ""}
-                      onClick={() => setStatsRange(range.value)}
-                    >
-                      {range.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {profileStats.categoryStats.length === 0 ? (
-                <div className="profile-empty">
-                  <h3>当前范围还没有数据</h3>
-                  <p>新增记录或切换统计范围后，这里会展示分类占比。</p>
-                </div>
-              ) : (
-                <div className="profile-content">
-                  <div
-                    className="pie-chart"
-                    role="img"
-                    aria-label="分类时间块占比饼状图"
-                    style={{ "--pie-gradient": pieGradient } as CSSProperties}
-                  >
-                    <div className="pie-chart-center">
-                      <strong>
-                        {formatWeight(profileStats.totalTimeBlockWeight)}
-                      </strong>
-                      <span>时间块</span>
-                    </div>
-                  </div>
-
-                  <ul className="profile-legend" aria-label="分类占比明细">
-                    {profileStats.categoryStats.map((stat) => (
-                      <li key={stat.category}>
-                        <span
-                          className="legend-swatch"
-                          style={{
-                            backgroundColor: CATEGORY_COLORS[stat.category],
-                          }}
-                        />
-                        <span className="legend-name">{stat.category}</span>
-                        <span className="legend-percent">
-                          {formatPercentage(stat.percentage)}
-                        </span>
-                        <span className="legend-weight">
-                          {formatWeight(stat.weight)} 块
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-
             <section className="list-panel" aria-labelledby="record-list-title">
               <div className="section-heading">
                 <h2 id="record-list-title">记录列表</h2>
@@ -677,52 +842,6 @@ function App() {
             </section>
           </div>
 
-          <section className="trend-panel" aria-labelledby="trend-title">
-            <div className="panel-header stacked">
-              <div>
-                <h2 id="trend-title">趋势总结</h2>
-                <p>
-                  {trendSummary.currentStartDate} 至{" "}
-                  {trendSummary.currentEndDate}
-                </p>
-              </div>
-              <div className="range-tabs compact" aria-label="趋势范围">
-                {TREND_RANGES.map((range) => (
-                  <button
-                    key={range.value}
-                    type="button"
-                    className={range.value === trendRange ? "active" : ""}
-                    onClick={() => setTrendRange(range.value)}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div
-              className={
-                trendSummary.hasEnoughRecords
-                  ? "trend-summary"
-                  : "trend-summary muted"
-              }
-            >
-              {trendSummary.sentences.map((sentence) => (
-                <p key={sentence}>{sentence}</p>
-              ))}
-            </div>
-
-            <div className="trend-footnote">
-              <span>
-                当前 {formatWeight(trendSummary.currentStats.totalTimeBlockWeight)}{" "}
-                块
-              </span>
-              <span>
-                上一周期{" "}
-                {formatWeight(trendSummary.previousStats.totalTimeBlockWeight)} 块
-              </span>
-            </div>
-          </section>
         </div>
       </section>
     </main>
