@@ -1109,3 +1109,166 @@ select[aria-invalid="true"] {
     grid-template-columns: 1fr;
   }
 }
+/* Beautiful Assets handling */
+[data-theme="ocean"] img.fish {
+  mix-blend-mode: multiply; /* Removes white background if any */
+  image-rendering: pixelated; /* Essential for pixel art! */
+  border-radius: 0;
+  width: 120px;
+  height: auto;
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+[data-theme="ocean"] .sticker-burst span {
+  color: var(--ribbon);
+  text-shadow: 0 2px 8px rgba(255, 255, 255, 0.8);
+}
+
+/* --- Ocean Environment --- */
+.ocean-environment {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1; 
+  overflow: hidden;
+}
+
+.ocean-surface {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, transparent 100%);
+}
+
+.ocean-fishes {
+  position: absolute;
+  inset: 0;
+}
+
+@keyframes swim-right {
+  0% { transform: translateX(-20vw); }
+  100% { transform: translateX(120vw); }
+}
+@keyframes swim-left {
+  0% { transform: translateX(120vw) scaleX(-1); }
+  100% { transform: translateX(-20vw) scaleX(-1); }
+}
+@keyframes float-up {
+  0% { transform: translateY(120vh) translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(-20vh) translateX(20px); opacity: 0; }
+}
+@keyframes bob {
+  0%, 100% { margin-top: 0; }
+  50% { margin-top: -20px; }
+}
+
+.fish.f1 { top: 15%; animation: swim-right 28s linear infinite, bob 4s ease-in-out infinite; width: 100px; }
+.fish.f2 { top: 45%; left: 10%; animation: float-up 35s linear infinite; width: 120px; }
+.fish.f3 { top: 65%; animation: swim-right 22s linear infinite, bob 3.5s ease-in-out infinite; width: 90px; }
+.fish.f4 { top: 85%; left: 80%; animation: float-up 45s linear infinite; width: 80px; }
+.fish.f5 { top: 25%; animation: swim-left 33s linear infinite, bob 5s ease-in-out infinite; width: 100px; }
+.fish.f6 { top: 75%; left: 40%; animation: float-up 30s linear infinite; width: 110px; }
+.fish.f7 { top: 35%; animation: swim-right 40s linear infinite, bob 6s ease-in-out infinite; width: 150px; }
+.fish.f8 { top: 55%; animation: swim-left 25s linear infinite, bob 4.5s ease-in-out infinite; width: 95px; }
+
+/* ==========================================================================
+   OCEAN THEME (Mobile App / Transparent / Animated)
+   ========================================================================== */
+
+:root[data-theme="ocean"] {
+  --ink: #ffffff;
+  --muted: #e2e8f0;
+  --paper: transparent;
+  --milk: transparent;
+  --ribbon: #0ea5e9;
+  --line: rgba(56, 189, 248, 0.3);
+  --shadow: none;
+
+  background: url('/assets/bg2.jpg') center/cover fixed no-repeat;
+  color: #fff;
+  transition: background 0.5s ease-in-out;
+}
+
+:root[data-theme="ocean"].show-jump-bg {
+  background: url('/assets/bg1.jpg') center/cover fixed no-repeat;
+}
+
+[data-theme="ocean"] body::before,
+[data-theme="ocean"] .welcome-shell::before {
+  display: none;
+}
+
+/* Pixel art panels */
+[data-theme="ocean"] .welcome-page,
+[data-theme="ocean"] .page-header,
+[data-theme="ocean"] .form-panel,
+[data-theme="ocean"] .calendar-panel,
+[data-theme="ocean"] .list-panel,
+[data-theme="ocean"] .profile-panel,
+[data-theme="ocean"] .trend-panel,
+[data-theme="ocean"] .record-item {
+  border: 4px solid #fff !important;
+  background: rgba(14, 165, 233, 0.5) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  box-shadow: 
+    inset 4px 4px 0px rgba(255, 255, 255, 0.4), 
+    inset -4px -4px 0px rgba(0, 0, 0, 0.3), 
+    4px 4px 0px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 0 !important;
+}
+
+/* Ensure ALL stickers and decorative images have NO boxes/backgrounds */
+[data-theme="ocean"] img,
+[data-theme="ocean"] .sticker,
+[data-theme="ocean"] .panel-stickers img,
+[data-theme="ocean"] .sticker-heart,
+[data-theme="ocean"] .sticker-bow {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  z-index: 100 !important;
+}
+
+[data-theme="ocean"] .kitty-card {
+  display: none;
+}
+
+/* Text readability */
+[data-theme="ocean"] h1,
+[data-theme="ocean"] h2,
+[data-theme="ocean"] h3,
+[data-theme="ocean"] p,
+[data-theme="ocean"] span:not(.legend-swatch),
+[data-theme="ocean"] div,
+[data-theme="ocean"] .eyebrow,
+[data-theme="ocean"] button,
+[data-theme="ocean"] input,
+[data-theme="ocean"] select {
+  color: #fff !important;
+  text-shadow: 1px 1px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000, 0px 2px 4px rgba(0,0,0,0.8);
+}
+
+[data-theme="ocean"] .record-count {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+[data-theme="ocean"] .welcome-enter-button,
+[data-theme="ocean"] .primary-button {
+  border: 2px solid rgba(255,255,255,0.6) !important;
+  background: rgba(14, 165, 233, 0.4) !important;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.6) !important;
+  backdrop-filter: blur(4px);
+  border-radius: 0 !important;
+  color: #fff !important;
+}

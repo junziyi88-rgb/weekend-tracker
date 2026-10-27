@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $AppDir = Split-Path -Parent $PSScriptRoot
 $HostAddress = "127.0.0.1"
 $Port = 5173
-$Url = "http://127.0.0.1:5173/"
+$Url = "http://127.0.0.1:5173/weekend-tracker/"
 
 function Test-WeekendTracker {
   $client = $null

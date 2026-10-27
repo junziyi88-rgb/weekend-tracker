@@ -125,7 +125,12 @@ const isInRange = (record: WeekendRecord, range: StatsRange, now: Date) => {
   }
 
   const rangeStart = getRangeStartDate(range, now);
-  const rangeEnd = toLocalDateString(getCurrentWeekendEnd(now));
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const weekendEnd = getCurrentWeekendEnd(now);
+  const effectiveEnd = weekendEnd <= monthEnd ? weekendEnd : monthEnd;
+  const rangeEnd = range === "current-month"
+    ? toLocalDateString(monthEnd)
+    : toLocalDateString(effectiveEnd);
   return Boolean(
     rangeStart &&
       record.record_date >= rangeStart &&
@@ -260,7 +265,9 @@ export const calculateTrendSummary = (
   now = new Date(),
 ): TrendSummary => {
   const rangeConfig = getTrendRangeConfig(range);
-  const currentEnd = getCurrentWeekendEnd(now);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const weekendEnd = getCurrentWeekendEnd(now);
+  const currentEnd = weekendEnd <= monthEnd ? weekendEnd : monthEnd;
   const currentEndExclusive = addDays(currentEnd, 1);
   const currentStart = addMonths(currentEndExclusive, -rangeConfig.months);
   const previousStart = addMonths(currentStart, -rangeConfig.months);

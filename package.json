@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:android-web": "cross-env CAPACITOR_BUILD=true npm run build",
+    "android:sync": "npm run build:android-web && cap sync android",
+    "android:apk": "npm run android:sync && cd android && gradlew assembleDebug",
+    "android:release": "npm run android:sync && cd android && gradlew assembleRelease",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -13,10 +17,29 @@
     "react-dom": "latest"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "latest",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@vitejs/plugin-legacy": "^8.1.0",
+    "@vitejs/plugin-react": "latest",
+    "cross-env": "latest",
+    "sharp": "^0.35.2",
     "typescript": "latest",
     "vite": "latest"
-  }
+  },
+  "description": "一个本地使用的周末时间回顾 MVP，用固定时间块和固定分类记录周末活动，并生成时间画像与规则化趋势总结。",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junziyi88-rgb/weekend-tracker.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/junziyi88-rgb/weekend-tracker/issues"
+  },
+  "homepage": "https://github.com/junziyi88-rgb/weekend-tracker#readme"
 }

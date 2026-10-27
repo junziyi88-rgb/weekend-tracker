@@ -1,4 +1,13 @@
-import { type CSSProperties, FormEvent, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  FormEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
 import {
   createRecords,
   deleteRecord,
@@ -35,21 +44,99 @@ type CalendarDay = {
   isRecordableWeekend: boolean;
   records: WeekendRecord[];
 };
+type StickerBurst = {
+  id: number;
+  x: number;
+  y: number;
+};
 
 const CATEGORY_COLORS: Record<Category, string> = {
-  休息: "#6aa9ff",
-  社交: "#ff9f7a",
-  运动: "#64d68a",
-  学习: "#9b7cff",
-  娱乐: "#ff7eb6",
-  家务: "#58d1d4",
-  出行: "#ffc857",
-  工作: "#8fa3c8",
-  陪伴家人: "#ff6b6b",
+  休息: "#8ecbff",
+  社交: "#ff9ab6",
+  运动: "#8fdbb2",
+  学习: "#c2a6ff",
+  娱乐: "#ff6f9f",
+  家务: "#86dce0",
+  出行: "#ffd56a",
+  工作: "#aeb9cf",
+  陪伴家人: "#ff8a8a",
 };
 
 const WEEKDAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+const HELLO_KITTY_ASSET = `${import.meta.env.BASE_URL}assets/hello-kitty.svg`;
+const HELLO_KITTY_BOW_ASSET = `${import.meta.env.BASE_URL}assets/hello-kitty-bow.png`;
+const BOW_ASSET = `${import.meta.env.BASE_URL}assets/bow-icon.png`;
+const USER_BOW_ASSET = `${import.meta.env.BASE_URL}assets/user-bow.png`;
+const USER_KITTY_HEART_ASSET = `${import.meta.env.BASE_URL}assets/user-kitty-heart.jpg`;
+const USER_BUNNY_ASSET = `${import.meta.env.BASE_URL}assets/user-bunny.jpg`;
+const USER_KITTY_BIG_BOW_ASSET = `${import.meta.env.BASE_URL}assets/user-kitty-big-bow.jpg`;
+const USER_KITTY_BEAR_ASSET = `${import.meta.env.BASE_URL}assets/user-kitty-bear.jpg`;
+const OCEAN_JELLYFISH_1 = `${import.meta.env.BASE_URL}assets/jellyfish1.png`;
+const OCEAN_JELLYFISH_2 = `${import.meta.env.BASE_URL}assets/jellyfish2.png`;
+const OCEAN_BUBBLE = `${import.meta.env.BASE_URL}assets/bubble.png`;
+const OCEAN_STARFISH = `${import.meta.env.BASE_URL}assets/starfish.png`;
+const OCEAN_SEAHORSE = `${import.meta.env.BASE_URL}assets/seahorse.png`;
+const OCEAN_BOTTLE = `${import.meta.env.BASE_URL}assets/bottle.png`;
+const OCEAN_PEARL = `${import.meta.env.BASE_URL}assets/pearl.png`;
+const OCEAN_MERMAID = `${import.meta.env.BASE_URL}assets/mermaid.png`;
+const OCEAN_FISH_1 = `${import.meta.env.BASE_URL}assets/fish1.png`;
+const OCEAN_FISH_2 = `${import.meta.env.BASE_URL}assets/fish2.png`;
+const OCEAN_FISH_3 = `${import.meta.env.BASE_URL}assets/fish3.png`;
+const FLOATING_SOUNDS = [
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-1.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-2.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-3.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-4.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-6.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-8.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-9.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-meow-10.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-sleeping.mp3`,
+  },
+  {
+    kind: "xiaohei",
+    src: `${import.meta.env.BASE_URL}sounds/xiaohei-fluffed.mp3`,
+  },
+  {
+    kind: "bidiu",
+    src: `${import.meta.env.BASE_URL}sounds/bidiu-1.mp3`,
+  },
+  {
+    kind: "bidiu",
+    src: `${import.meta.env.BASE_URL}sounds/bidiu-5.mp3`,
+  },
+] as const;
+const CLICK_SOUNDS = [
+  `${import.meta.env.BASE_URL}sounds/click-cool-interface-tone.mp3`,
+  `${import.meta.env.BASE_URL}sounds/click-modern-technology-select.mp3`,
+];
 
 const toLocalDateString = (date: Date) => {
   const year = date.getFullYear();
@@ -306,7 +393,11 @@ const sortSelectedDateRecords = (records: WeekendRecord[]) =>
     return a.created_at.localeCompare(b.created_at);
   });
 
+
 function App() {
+  const meowAudioRef = useRef<HTMLAudioElement | null>(null);
+  const clickAudioRef = useRef<HTMLAudioElement | null>(null);
+  const nextClickSoundRef = useRef(0);
   const initialRecords = useMemo(() => getRecords(), []);
   const initialSelectedDate = useMemo(
     () => getInitialSelectedDate(initialRecords),
@@ -323,9 +414,103 @@ function App() {
   const [statsRange, setStatsRange] = useState<StatsRange>("current-month");
   const [trendRange, setTrendRange] = useState<TrendRange>("last-month");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isEntering, setIsEntering] = useState(false);
+  const [activeStickerKey, setActiveStickerKey] = useState<string | null>(null);
+  const [stickerBurst, setStickerBurst] = useState<StickerBurst | null>(null);
+  const [saveBurstKey, setSaveBurstKey] = useState(0);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>(
     {},
   );
+  const [theme, setTheme] = useState(() => localStorage.getItem("app-theme") || "default");
+  const themeAssets = {
+    main: theme === "ocean" ? OCEAN_MERMAID : HELLO_KITTY_ASSET,
+    sticker: theme === "ocean" ? OCEAN_PEARL : HELLO_KITTY_BOW_ASSET,
+    icon: theme === "ocean" ? OCEAN_STARFISH : BOW_ASSET,
+    userIcon: theme === "ocean" ? OCEAN_SEAHORSE : USER_BOW_ASSET,
+    heart: theme === "ocean" ? OCEAN_FISH_1 : USER_KITTY_HEART_ASSET,
+    bunny: theme === "ocean" ? OCEAN_BOTTLE : USER_BUNNY_ASSET,
+    bigBow: theme === "ocean" ? OCEAN_PEARL : USER_KITTY_BIG_BOW_ASSET,
+    bear: theme === "ocean" ? OCEAN_STARFISH : USER_KITTY_BEAR_ASSET,
+    burstText: theme === "ocean" ? "" : "喵",
+  };
+
+  const [pullDistance, setPullDistance] = useState(0);
+  const [showJumpBg, setShowJumpBg] = useState(false);
+  const touchStartY = useRef<number | null>(null);
+  const bgm1Ref = useRef<HTMLAudioElement | null>(null);
+  const bgm2Ref = useRef<HTMLAudioElement | null>(null);
+  const splashAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "ocean" && showJumpBg) {
+      document.documentElement.classList.add("show-jump-bg");
+    } else {
+      document.documentElement.classList.remove("show-jump-bg");
+    }
+    localStorage.setItem("app-theme", theme);
+  }, [theme, showJumpBg]);
+
+  useEffect(() => {
+    if (theme !== "ocean") {
+      bgm1Ref.current?.pause();
+      bgm2Ref.current?.pause();
+      return;
+    }
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (window.scrollY <= 0) {
+        touchStartY.current = e.touches[0].clientY;
+      }
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (touchStartY.current === null) return;
+      const y = e.touches[0].clientY;
+      const diff = y - touchStartY.current;
+      if (diff > 0 && window.scrollY <= 0) {
+        setPullDistance(diff);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      setPullDistance((prev) => {
+        if (prev > 100) {
+          setShowJumpBg(prevBg => {
+            const nextBg = !prevBg;
+            if (splashAudioRef.current) {
+              splashAudioRef.current.currentTime = 0;
+              splashAudioRef.current.play().catch(e => console.log(e));
+            }
+            if (nextBg) {
+              bgm2Ref.current?.pause();
+              bgm1Ref.current?.play().catch(e => console.log(e));
+            } else {
+              bgm1Ref.current?.pause();
+              bgm2Ref.current?.play().catch(e => console.log(e));
+            }
+            return nextBg;
+          });
+        }
+        return 0;
+      });
+      touchStartY.current = null;
+    };
+
+    window.addEventListener("touchstart", handleTouchStart);
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+
+    // Initial BGM play if needed, usually requires user interaction first
+    // so we rely on the user clicking the theme switcher or swiping
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [theme]);
 
   const editingRecord = useMemo(
     () => records.find((record) => record.id === editingId) ?? null,
@@ -351,19 +536,56 @@ function App() {
   );
 
   const profileStats = useMemo(
-    () => calculateCategoryStats(records, statsRange),
-    [records, statsRange],
+    () => calculateCategoryStats(records, statsRange, calendarMonth),
+    [records, statsRange, calendarMonth],
   );
 
   const trendSummary = useMemo(
-    () => calculateTrendSummary(records, trendRange),
-    [records, trendRange],
+    () => calculateTrendSummary(records, trendRange, calendarMonth),
+    [records, trendRange, calendarMonth],
   );
 
   const pieSlices = useMemo(
     () => getPieSlices(profileStats.categoryStats),
     [profileStats.categoryStats],
   );
+
+  const playAudio = (
+    audioRef: typeof meowAudioRef,
+    soundSource: string,
+    volume = 0.78,
+  ) => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
+
+    const audio = audioRef.current;
+    audio.pause();
+    audio.src = soundSource;
+    audio.currentTime = 0;
+    audio.volume = volume;
+    const playResult = audio.play();
+    if (playResult) {
+      void playResult.catch(() => undefined);
+    }
+  };
+
+  const playClick = () => {
+    const soundSource = CLICK_SOUNDS[nextClickSoundRef.current];
+    nextClickSoundRef.current =
+      (nextClickSoundRef.current + 1) % CLICK_SOUNDS.length;
+    playAudio(clickAudioRef, soundSource, 0.54);
+  };
+
+  const playFloatingSound = () => {
+    if (theme === "ocean") {
+      return null;
+    }
+    const sound =
+      FLOATING_SOUNDS[Math.floor(Math.random() * FLOATING_SOUNDS.length)];
+    playAudio(meowAudioRef, sound.src, sound.kind === "xiaohei" ? 0.84 : 0.62);
+    return sound.kind;
+  };
 
   const refreshRecords = () => {
     setRecords(getRecords());
@@ -376,12 +598,14 @@ function App() {
   };
 
   const selectCalendarDate = (dateString: string) => {
+    playClick();
     setSelectedDate(dateString);
     setCalendarMonth(parseDateString(dateString));
     resetForm(dateString);
   };
 
   const toggleSlot = (slot: WeekendSlot) => {
+    playClick();
     setForm((current) => {
       const isSelected = current.weekend_slots.includes(slot);
       return {
@@ -408,6 +632,8 @@ function App() {
       createRecords(form);
     }
 
+    playClick();
+    setSaveBurstKey(Date.now());
     refreshRecords();
     setSelectedDate(form.record_date);
     setCalendarMonth(parseDateString(form.record_date));
@@ -415,6 +641,7 @@ function App() {
   };
 
   const handleEdit = (record: WeekendRecord) => {
+    playClick();
     setEditingId(record.id);
     setSelectedDate(record.record_date);
     setCalendarMonth(parseDateString(record.record_date));
@@ -428,6 +655,7 @@ function App() {
   };
 
   const handleDelete = (id: string) => {
+    playClick();
     deleteRecord(id);
     refreshRecords();
     if (editingId === id) {
@@ -435,10 +663,113 @@ function App() {
     }
   };
 
+  const enterApp = () => {
+    playClick();
+    setIsEntering(true);
+    window.setTimeout(() => setHasEntered(true), 620);
+  };
+
+  const handleStickerTap = (
+    stickerKey: string,
+    event: MouseEvent<HTMLElement> | KeyboardEvent<HTMLElement>,
+  ) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const soundKind = playFloatingSound();
+
+    setActiveStickerKey(stickerKey);
+    if (soundKind === "xiaohei") {
+      setStickerBurst({
+        id: Date.now(),
+        x: bounds.left + bounds.width / 2,
+        y: bounds.top + bounds.height / 2,
+      });
+    } else {
+      setStickerBurst(null);
+    }
+    window.setTimeout(() => {
+      setActiveStickerKey((currentKey) =>
+        currentKey === stickerKey ? null : currentKey,
+      );
+    }, 520);
+  };
+
+  const handleStickerKeyDown = (
+    stickerKey: string,
+    event: KeyboardEvent<HTMLElement>,
+  ) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    handleStickerTap(stickerKey, event);
+  };
+
+  const stickerClassName = (baseClassName: string, stickerKey: string) =>
+    `${baseClassName}${activeStickerKey === stickerKey ? " is-popping" : ""}`;
+
+  const shiftCalendarMonth = (months: number) => {
+    playClick();
+    setCalendarMonth((current) => addMonths(current, months));
+  };
+
+  const selectStatsRange = (range: StatsRange) => {
+    playClick();
+    setStatsRange(range);
+  };
+
+  const selectTrendRange = (range: TrendRange) => {
+    playClick();
+    setTrendRange(range);
+  };
+
   const titleLabel = editingRecord ? "编辑记录" : "新增记录";
   const submitLabel = editingRecord ? "保存修改" : "新增记录";
+  const summaryHeader = (
+    <>
+      <div className="kitty-card" aria-hidden="true">
+        <img src={themeAssets.main} alt="" />
+      </div>
+      <div className="header-text">
+        <p className="eyebrow">Weekend sticker diary</p>
+        <h1>周末时间回顾</h1>
+        <p className="header-copy">
+          把休息、陪伴和小小计划收进粉白贴纸簿。
+        </p>
+      </div>
+      <p className="record-count">
+        {records.length}
+        <span>条记录</span>
+      </p>
+    </>
+  );
   const profilePanel = (
     <section className="profile-panel" aria-labelledby="profile-title">
+      <div className="panel-stickers profile-stickers">
+        <img
+          className={stickerClassName(
+            "sticker sticker-photo profile-sticker-photo",
+            "profile-photo",
+          )}
+          src={themeAssets.bunny}
+          alt="点击听猫叫"
+          role="button"
+          tabIndex={0}
+          onClick={(event) => handleStickerTap("profile-photo", event)}
+          onKeyDown={(event) => handleStickerKeyDown("profile-photo", event)}
+        />
+        <span
+          className={stickerClassName(
+            "sticker-star profile-sticker-star",
+            "profile-star",
+          )}
+          role="button"
+          tabIndex={0}
+          aria-label="点击星星听猫叫"
+          onClick={(event) => handleStickerTap("profile-star", event)}
+          onKeyDown={(event) => handleStickerKeyDown("profile-star", event)}
+        />
+      </div>
       <div className="panel-header">
         <div>
           <h2 id="profile-title">周末时间画像</h2>
@@ -453,7 +784,7 @@ function App() {
               key={range.value}
               type="button"
               className={range.value === statsRange ? "active" : ""}
-              onClick={() => setStatsRange(range.value)}
+              onClick={() => selectStatsRange(range.value)}
             >
               {range.label}
             </button>
@@ -530,6 +861,31 @@ function App() {
   );
   const trendPanel = (
     <section className="trend-panel" aria-labelledby="trend-title">
+      <div className="panel-stickers trend-stickers">
+        <img
+          className={stickerClassName(
+            "sticker sticker-bow trend-sticker-bow",
+            "trend-bow",
+          )}
+          src={themeAssets.sticker}
+          alt="点击听猫叫"
+          role="button"
+          tabIndex={0}
+          onClick={(event) => handleStickerTap("trend-bow", event)}
+          onKeyDown={(event) => handleStickerKeyDown("trend-bow", event)}
+        />
+        <span
+          className={stickerClassName(
+            "sticker-heart trend-sticker-heart",
+            "trend-heart",
+          )}
+          role="button"
+          tabIndex={0}
+          aria-label="点击爱心听猫叫"
+          onClick={(event) => handleStickerTap("trend-heart", event)}
+          onKeyDown={(event) => handleStickerKeyDown("trend-heart", event)}
+        />
+      </div>
       <div className="panel-header stacked">
         <div>
           <h2 id="trend-title">趋势总结</h2>
@@ -543,7 +899,7 @@ function App() {
               key={range.value}
               type="button"
               className={range.value === trendRange ? "active" : ""}
-              onClick={() => setTrendRange(range.value)}
+              onClick={() => selectTrendRange(range.value)}
             >
               {range.label}
             </button>
@@ -573,20 +929,145 @@ function App() {
     </section>
   );
 
+  if (!hasEntered) {
+    return (
+      <main
+        className={`app-shell welcome-shell ${isEntering ? "is-leaving" : ""}`}
+        style={
+          {
+            "--kitty-asset": `url(${themeAssets.main})`,
+          } as CSSProperties
+        }
+      >
+        <section className="welcome-page" aria-labelledby="welcome-title">
+          <div className="page-header welcome-summary-card">
+            {summaryHeader}
+          </div>
+          <h1 id="welcome-title">
+            李紫怡的朋友你好
+            <span>欢迎你！</span>
+          </h1>
+          <button
+            type="button"
+            className="welcome-enter-button"
+            onClick={enterApp}
+            disabled={isEntering}
+          >
+            我来啦！
+          </button>
+        </section>
+      </main>
+    );
+  }
+
   return (
-    <main className="app-shell">
+    <main
+      className="app-shell main-shell"
+      style={
+        {
+          "--kitty-asset": `url(${themeAssets.main})`,
+        } as CSSProperties
+      }
+    >
+      <button
+        className="theme-switcher-btn"
+        onClick={() => setTheme((prev) => (prev === "ocean" ? "default" : "ocean"))}
+        aria-label="Toggle theme"
+      >
+        <span className="theme-switcher-icon">{theme === "ocean" ? "🌸" : "🌊"}</span>
+      </button>
+      {theme === "ocean" && (
+        <div className="ocean-environment" aria-hidden="true">
+          <audio ref={bgm1Ref} loop src={`${import.meta.env.BASE_URL}sounds/bgm-1.mp3`} />
+          <audio ref={bgm2Ref} loop src={`${import.meta.env.BASE_URL}sounds/bgm-2.mp3`} />
+          <audio ref={splashAudioRef} src={`${import.meta.env.BASE_URL}sounds/splash.mp3`} />
+          
+          <div className={`pull-to-refresh-hint ${pullDistance > 100 ? "visible" : ""}`}>
+            🌊 松手跳出海面！
+          </div>
+
+          <img src={OCEAN_MERMAID} alt="美人鱼" className="mermaid-bottom-right" />
+          
+          {/* 上浮的水母和泡泡 */}
+          <img src={OCEAN_JELLYFISH_1} alt="" className="anim-float" style={{ left: '10%', animationDuration: '15s', animationDelay: '0s' }} width="80" />
+          <img src={OCEAN_JELLYFISH_2} alt="" className="anim-float" style={{ left: '80%', animationDuration: '18s', animationDelay: '2s' }} width="60" />
+          <img src={OCEAN_BUBBLE} alt="" className="anim-float" style={{ left: '30%', animationDuration: '10s', animationDelay: '1s' }} width="40" />
+          <img src={OCEAN_BUBBLE} alt="" className="anim-float" style={{ left: '60%', animationDuration: '12s', animationDelay: '4s' }} width="30" />
+          <img src={OCEAN_BUBBLE} alt="" className="anim-float" style={{ left: '45%', animationDuration: '9s', animationDelay: '7s' }} width="50" />
+          
+          {/* 左右游动的鱼 */}
+          <img src={OCEAN_FISH_2} alt="" className="anim-swim-right" style={{ top: '30%', animationDuration: '20s' }} width="100" />
+          <img src={OCEAN_FISH_3} alt="" className="anim-swim-left" style={{ top: '60%', animationDuration: '25s', animationDelay: '5s' }} width="80" />
+          <img src={OCEAN_FISH_2} alt="" className="anim-swim-left" style={{ top: '80%', animationDuration: '22s', animationDelay: '12s' }} width="70" />
+        </div>
+      )}
+
+      {stickerBurst ? (
+        <div
+          key={stickerBurst.id}
+          className="sticker-burst"
+          style={
+            {
+              "--burst-x": `${stickerBurst.x}px`,
+              "--burst-y": `${stickerBurst.y}px`,
+            } as CSSProperties
+          }
+          aria-hidden="true"
+        >
+          <span>{themeAssets.burstText}</span>
+          <i />
+          <i />
+          <i />
+        </div>
+      ) : null}
+      {saveBurstKey > 0 ? (
+        <div key={saveBurstKey} className="save-sparkle" aria-live="polite">
+          保存好啦
+        </div>
+      ) : null}
       <section className="workspace">
+        <header className="page-header main-summary-card">
+          {summaryHeader}
+        </header>
+
         <div className="planning-grid">
           <div className="calendar-stack">
             <section className="calendar-panel" aria-labelledby="calendar-title">
+              <div className="panel-stickers calendar-stickers">
+                <img
+                  className={stickerClassName(
+                    "sticker sticker-bow calendar-sticker-bow",
+                    "calendar-bow",
+                  )}
+                  src={themeAssets.sticker}
+                  alt="点击听猫叫"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => handleStickerTap("calendar-bow", event)}
+                  onKeyDown={(event) =>
+                    handleStickerKeyDown("calendar-bow", event)
+                  }
+                />
+                <span
+                  className={stickerClassName(
+                    "sticker-heart calendar-sticker-heart",
+                    "calendar-heart",
+                  )}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="点击爱心听猫叫"
+                  onClick={(event) => handleStickerTap("calendar-heart", event)}
+                  onKeyDown={(event) =>
+                    handleStickerKeyDown("calendar-heart", event)
+                  }
+                />
+              </div>
               <div className="calendar-heading">
                 <button
                   type="button"
                   className="icon-button"
                   aria-label="上个月"
-                  onClick={() =>
-                    setCalendarMonth((current) => addMonths(current, -1))
-                  }
+                  onClick={() => shiftCalendarMonth(-1)}
                 >
                   ‹
                 </button>
@@ -595,9 +1076,7 @@ function App() {
                   type="button"
                   className="icon-button"
                   aria-label="下个月"
-                  onClick={() =>
-                    setCalendarMonth((current) => addMonths(current, 1))
-                  }
+                  onClick={() => shiftCalendarMonth(1)}
                 >
                   ›
                 </button>
@@ -605,7 +1084,12 @@ function App() {
 
               <div className="calendar-grid" aria-label="周末日历">
                 {WEEKDAY_LABELS.map((label) => (
-                  <div key={label} className="weekday-label">
+                  <div
+                    key={label}
+                    className={`weekday-label ${
+                      label === "六" || label === "日" ? "weekend-label" : ""
+                    }`}
+                  >
                     {label}
                   </div>
                 ))}
@@ -669,6 +1153,46 @@ function App() {
           </div>
 
           <section className="form-panel" aria-labelledby="record-form-title">
+            <div className="panel-stickers form-stickers">
+              <img
+                className={stickerClassName(
+                  "sticker sticker-photo form-sticker-top-photo",
+                  "form-top-photo",
+                )}
+                src={themeAssets.heart}
+                alt="点击听猫叫"
+                role="button"
+                tabIndex={0}
+                onClick={(event) => handleStickerTap("form-top-photo", event)}
+                onKeyDown={(event) =>
+                  handleStickerKeyDown("form-top-photo", event)
+                }
+              />
+              <img
+                className={stickerClassName(
+                  "sticker sticker-photo form-sticker-photo",
+                  "form-photo",
+                )}
+                src={themeAssets.bigBow}
+                alt="点击听猫叫"
+                role="button"
+                tabIndex={0}
+                onClick={(event) => handleStickerTap("form-photo", event)}
+                onKeyDown={(event) => handleStickerKeyDown("form-photo", event)}
+              />
+              <img
+                className={stickerClassName(
+                  "sticker sticker-bow form-sticker-bow",
+                  "form-bow",
+                )}
+                src={themeAssets.icon}
+                alt="点击听猫叫"
+                role="button"
+                tabIndex={0}
+                onClick={(event) => handleStickerTap("form-bow", event)}
+                onKeyDown={(event) => handleStickerKeyDown("form-bow", event)}
+              />
+            </div>
             <div className="form-title-row">
               <div>
                 <h2 id="record-form-title">{titleLabel}</h2>
@@ -702,47 +1226,57 @@ function App() {
                 ) : null}
               </div>
 
-              <div className="field-group">
-                <span className="field-label">时间块</span>
-                <div className="slot-options" aria-label="时间块">
-                  {availableSlots.map((slot) => (
-                    <label key={slot} className="slot-option">
-                      <input
-                        type="checkbox"
-                        checked={form.weekend_slots.includes(slot)}
-                        onChange={() => toggleSlot(slot)}
-                      />
-                      <span>{getShortSlotLabel(slot)}</span>
-                    </label>
-                  ))}
+              <div className="slot-category-row">
+                <div className="field-group slot-group">
+                  <span className="field-label">时间块</span>
+                  <div className="slot-options" aria-label="时间块">
+                    {availableSlots.map((slot) => (
+                      <label
+                        key={slot}
+                        className={`slot-option ${
+                          form.weekend_slots.includes(slot) ? "selected" : ""
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.weekend_slots.includes(slot)}
+                          onChange={() => toggleSlot(slot)}
+                        />
+                        <span>{getShortSlotLabel(slot)}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {errors.weekend_slots ? (
+                    <span className="field-error">{errors.weekend_slots}</span>
+                  ) : null}
                 </div>
-                {errors.weekend_slots ? (
-                  <span className="field-error">{errors.weekend_slots}</span>
-                ) : null}
-              </div>
 
-              <div className="field-group">
-                <label htmlFor="record-category">分类</label>
-                <select
-                  id="record-category"
-                  value={form.category}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      category: event.target.value as Category,
-                    }))
-                  }
-                  aria-invalid={Boolean(errors.category)}
-                >
-                  {CATEGORIES.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-                {errors.category ? (
-                  <span className="field-error">{errors.category}</span>
-                ) : null}
+                <div className="field-group category-group">
+                  <label htmlFor="record-category">分类</label>
+                  <div className="cute-select-wrap">
+                    <select
+                      id="record-category"
+                      value={form.category}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          category: event.target.value as Category,
+                        }))
+                      }
+                      aria-invalid={Boolean(errors.category)}
+                    >
+                      {CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="cute-select-arrow" aria-hidden="true">♡</span>
+                  </div>
+                  {errors.category ? (
+                    <span className="field-error">{errors.category}</span>
+                  ) : null}
+                </div>
               </div>
 
               <div className="form-actions">
@@ -796,6 +1330,20 @@ function App() {
         <div className="insight-grid">
           <div className="insight-main">
             <section className="list-panel" aria-labelledby="record-list-title">
+              <div className="panel-stickers list-stickers">
+                <img
+                  className={stickerClassName(
+                    "sticker sticker-bow list-sticker-bow",
+                    "list-bow",
+                  )}
+                  src={themeAssets.userIcon}
+                  alt="点击听猫叫"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(event) => handleStickerTap("list-bow", event)}
+                  onKeyDown={(event) => handleStickerKeyDown("list-bow", event)}
+                />
+              </div>
               <div className="section-heading">
                 <h2 id="record-list-title">记录列表</h2>
                 <span>按日期和时间块倒序</span>
@@ -808,8 +1356,26 @@ function App() {
                 </div>
               ) : (
                 <ul className="record-list">
-                  {records.map((record) => (
+                  {records.map((record, index) => (
                     <li key={record.id} className="record-item">
+                      {index === 0 ? (
+                        <img
+                          className={stickerClassName(
+                            "sticker sticker-photo list-sticker-photo",
+                            "list-photo",
+                          )}
+                          src={themeAssets.bear}
+                          alt="点击听猫叫"
+                          role="button"
+                          tabIndex={0}
+                          onClick={(event) =>
+                            handleStickerTap("list-photo", event)
+                          }
+                          onKeyDown={(event) =>
+                            handleStickerKeyDown("list-photo", event)
+                          }
+                        />
+                      ) : null}
                       <div className="record-main">
                         <h3>{record.title}</h3>
                         <p>
